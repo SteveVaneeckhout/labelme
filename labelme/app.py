@@ -1014,11 +1014,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.undo.setEnabled(self.canvas.isShapeRestorable)
 
         if self._config["auto_save"] or self.actions.saveAuto.isChecked():
-            assert self.imagePath
-            label_file = f"{osp.splitext(self.imagePath)[0]}.json"
-            if self.output_dir:
-                label_file_without_path = osp.basename(label_file)
-                label_file = osp.join(self.output_dir, label_file_without_path)
+            # Use the same logic as saveFile to determine the save location
+            if self.labelFile:
+                # If we loaded an existing label file, save to the same location
+                label_file = self.labelFile.filename
+            else:
+                # Otherwise, compute the label file path
+                assert self.imagePath
+                label_file = f"{osp.splitext(self.imagePath)[0]}.json"
+                if self.output_dir:
+                    label_file_without_path = osp.basename(label_file)
+                    label_file = osp.join(self.output_dir, label_file_without_path)
             self.saveLabels(label_file)
             return
         self._is_changed = True
@@ -1764,9 +1770,15 @@ class MainWindow(QtWidgets.QMainWindow):
             assert self.labelFile is not None
             self.imageData = self.labelFile.imageData
             assert self.labelFile.imagePath
-            self.imagePath = osp.join(
-                osp.dirname(label_file),
-                self.labelFile.imagePath,
+            # Normalize path separators for cross-platform compatibility
+            # (e.g., convert Windows backslashes to forward slashes on Linux)
+            # Note: forward slashes work on both Windows and Linux
+            normalized_image_path = self.labelFile.imagePath.replace("\\", "/")
+            self.imagePath = osp.normpath(
+                osp.join(
+                    osp.dirname(label_file),
+                    normalized_image_path,
+                )
             )
             self._other_data = self.labelFile.otherData
         else:
